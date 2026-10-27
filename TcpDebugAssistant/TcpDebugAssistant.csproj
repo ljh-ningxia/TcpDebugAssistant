@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>TcpDebugAssistant</AssemblyName>
     <RootNamespace>TcpDebugAssistant</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Product>TCP调试助手</Product>
   </PropertyGroup>
 
