@@ -95,23 +95,23 @@ public partial class MainForm : Form
 
         // 客户端行
         _lblRemoteIp = new Label { Text = "远程 IP：", Location = new Point(150, 29), AutoSize = true };
-        _txtRemoteIp = new TextBox { Text = "127.0.0.1", Location = new Point(212, 25), Width = 140 };
-        _lblRemotePort = new Label { Text = "端口：", Location = new Point(368, 29), AutoSize = true };
-        _txtRemotePort = new TextBox { Text = "8080", Location = new Point(416, 25), Width = 70 };
-        _btnConnect = new Button { Text = "连接", Location = new Point(510, 24), Width = 90, Height = 28 };
+        _txtRemoteIp = new TextBox { Text = "127.0.0.1", Location = new Point(212, 25), Width = 200 };
+        _lblRemotePort = new Label { Text = "端口：", Location = new Point(425, 29), AutoSize = true };
+        _txtRemotePort = new TextBox { Text = "8080", Location = new Point(470, 25), Width = 75 };
+        _btnConnect = new Button { Text = "连接", Location = new Point(560, 24), Width = 90, Height = 28 };
 
         // 服务端行
         _lblListenIp = new Label { Text = "监听 IP：", Location = new Point(150, 59), AutoSize = true };
-        _txtListenIp = new TextBox { Text = "0.0.0.0", Location = new Point(212, 55), Width = 140 };
-        _lblListenPort = new Label { Text = "端口：", Location = new Point(368, 59), AutoSize = true };
-        _txtListenPort = new TextBox { Text = "8080", Location = new Point(416, 55), Width = 70 };
-        _btnListen = new Button { Text = "开始监听", Location = new Point(510, 54), Width = 90, Height = 28 };
+        _txtListenIp = new TextBox { Text = "0.0.0.0", Location = new Point(212, 55), Width = 200 };
+        _lblListenPort = new Label { Text = "端口：", Location = new Point(425, 59), AutoSize = true };
+        _txtListenPort = new TextBox { Text = "8080", Location = new Point(470, 55), Width = 75 };
+        _btnListen = new Button { Text = "开始监听", Location = new Point(560, 54), Width = 90, Height = 28 };
 
         // 客户端列表行
         _lblClients = new Label { Text = "客户端列表：", Location = new Point(150, 89), AutoSize = true };
-        _cmbClients = new ComboBox { Location = new Point(240, 85), Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
-        _btnKick = new Button { Text = "断开选中", Location = new Point(494, 84), Width = 90, Height = 28 };
-        _chkBroadcast = new CheckBox { Text = "广播发送（发给所有客户端）", Location = new Point(620, 26), AutoSize = true };
+        _cmbClients = new ComboBox { Location = new Point(240, 85), Width = 250, DropDownStyle = ComboBoxStyle.DropDownList };
+        _btnKick = new Button { Text = "断开选中", Location = new Point(505, 84), Width = 90, Height = 28 };
+        _chkBroadcast = new CheckBox { Text = "广播发送（发给所有客户端）", Location = new Point(670, 29), AutoSize = true };
 
         gb.Controls.AddRange(new Control[]
         {
@@ -337,21 +337,9 @@ public partial class MainForm : Form
         _btnKick.Visible = !clientMode;
         _chkBroadcast.Visible = !clientMode;
 
-        // 切换模式时自动断开当前会话，避免状态混乱
-        if (clientMode)
-        {
-            if (_serverSession.IsListening)
-            {
-                _serverSession.Stop();
-            }
-        }
-        else
-        {
-            if (_clientSession.IsConnected)
-            {
-                _clientSession.Disconnect();
-            }
-        }
+        // 注意：切换模式时不再自动停止另一个会话，
+        // 这样可以在同一窗口内自测（服务端保持监听，切到客户端连 127.0.0.1 验证）。
+        // 需要断开时请点击“断开”/“停止监听”按钮，或关闭程序。
 
         UpdateStatus();
     }
@@ -569,7 +557,8 @@ public partial class MainForm : Form
     {
         if (_radClient.Checked)
         {
-            _lblStatus.Text = _clientSession.IsConnected ? "状态：客户端已连接" : "状态：客户端未连接";
+            var serverHint = _serverSession.IsListening ? "（服务端仍在监听，可切回服务端模式查看）" : string.Empty;
+            _lblStatus.Text = (_clientSession.IsConnected ? "状态：客户端已连接" : "状态：客户端未连接") + serverHint;
             _lblEndpoints.Text = $"本地：{_clientSession.LocalEndPoint}  远程：{_clientSession.RemoteEndPoint}";
         }
         else
