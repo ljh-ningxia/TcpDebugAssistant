@@ -63,6 +63,8 @@ public partial class MainForm : Form
     // 发送区
     private RadioButton _radSendAscii = null!;
     private RadioButton _radSendHex = null!;
+    private Label _lblSendEncoding = null!;
+    private ComboBox _cmbSendEncoding = null!;
     private TextBox _txtSend = null!;
     private CheckBox _chkAppendNewline = null!;
     private CheckBox _chkAutoSend = null!;
@@ -245,10 +247,15 @@ public partial class MainForm : Form
         _radSendAscii = new RadioButton { Text = "ASCII", Appearance = Appearance.Button, FlatStyle = FlatStyle.Flat, Size = new Size(64, 30), Location = new Point(28, 44), TextAlign = ContentAlignment.MiddleCenter, Cursor = Cursors.Hand, Checked = true };
         _radSendHex = new RadioButton { Text = "HEX", Appearance = Appearance.Button, FlatStyle = FlatStyle.Flat, Size = new Size(64, 30), Location = new Point(96, 44), TextAlign = ContentAlignment.MiddleCenter, Cursor = Cursors.Hand };
 
-        _chkAppendNewline = new CheckBox { Text = "自动追加 \\r\\n", Location = new Point(180, 49), AutoSize = true, ForeColor = TextSecondary };
-        _chkAutoSend = new CheckBox { Text = "自动发送，间隔", Location = new Point(292, 49), AutoSize = true, ForeColor = TextSecondary };
-        _txtAutoInterval = new TextBox { Text = "1000", Location = new Point(396, 45), Width = 60, Height = 28, Font = InputFont, TextAlign = HorizontalAlignment.Center, BorderStyle = BorderStyle.FixedSingle };
-        _lblMs = new Label { Text = "ms", Location = new Point(462, 49), AutoSize = true, ForeColor = TextSecondary };
+        _lblSendEncoding = new Label { Text = "编码", Location = new Point(174, 49), AutoSize = true, ForeColor = TextSecondary };
+        _cmbSendEncoding = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(210, 45), Size = new Size(76, 28), Font = InputFont, FlatStyle = FlatStyle.Flat };
+        _cmbSendEncoding.Items.AddRange(new object[] { "UTF-8", "GBK" });
+        _cmbSendEncoding.SelectedIndex = 0;
+
+        _chkAppendNewline = new CheckBox { Text = "自动追加 \\r\\n", Location = new Point(302, 49), AutoSize = true, ForeColor = TextSecondary };
+        _chkAutoSend = new CheckBox { Text = "自动发送，间隔", Location = new Point(404, 49), AutoSize = true, ForeColor = TextSecondary };
+        _txtAutoInterval = new TextBox { Text = "1000", Location = new Point(516, 45), Width = 60, Height = 28, Font = InputFont, TextAlign = HorizontalAlignment.Center, BorderStyle = BorderStyle.FixedSingle };
+        _lblMs = new Label { Text = "ms", Location = new Point(582, 49), AutoSize = true, ForeColor = TextSecondary };
 
         _btnSend = new Button { Text = "发 送", Location = new Point(856, 40), Size = new Size(116, 40), Anchor = AnchorStyles.Top | AnchorStyles.Right };
         StylePrimaryButton(_btnSend, Accent);
@@ -263,18 +270,22 @@ public partial class MainForm : Form
             Font = InputFont,
             BorderStyle = BorderStyle.FixedSingle,
             BackColor = Color.White,
-            PlaceholderText = "输入要发送的内容（ASCII 文本，或 HEX 字节如 41 42 43）"
+            PlaceholderText = "输入要发送的内容（ASCII 文本可选 UTF-8 / GBK 编码，或 HEX 字节如 41 42 43）"
         };
 
         card.Controls.AddRange(new Control[]
         {
-            cardTitle, _radSendAscii, _radSendHex, _chkAppendNewline, _chkAutoSend,
-            _txtAutoInterval, _lblMs, _btnSend, _txtSend
+            cardTitle, _radSendAscii, _radSendHex, _lblSendEncoding, _cmbSendEncoding,
+            _chkAppendNewline, _chkAutoSend, _txtAutoInterval, _lblMs, _btnSend, _txtSend
         });
         Controls.Add(card);
 
         _autoSendTimer = new System.Windows.Forms.Timer { Interval = 1000 };
         _autoSendTimer.Tick += async (_, _) => await SendOnceAsync(silent: true);
+
+        // HEX 模式下编码选择无意义
+        _radSendAscii.CheckedChanged += (_, _) => _cmbSendEncoding.Enabled = _radSendAscii.Checked;
+        _radSendHex.CheckedChanged += (_, _) => _cmbSendEncoding.Enabled = _radSendAscii.Checked;
     }
 
     private void BuildReceiveCard()
@@ -627,17 +638,32 @@ public partial class MainForm : Form
 
     private async Task SendOnceAsync(bool silent = false)
     {
-        var format = _radSendHex.Checked ? DisplayFormat.Hex : DisplayFormat.Ascii;
-        if (!DataConvert.TryParseInput(_txtSend.Text, format, out var payload) || payload.Length == 0)
+        byte[] payload;
+        if (_radSendHex.Checked)
         {
-            if (!silent)
+            if (!DataConvert.TryParseHex(_txtSend.Text, out payload) || payload.Length == 0)
             {
-                MessageBox.Show(this, format == DisplayFormat.Hex
-                    ? "HEX 内容无效：需为偶数个十六进制字符（可带空格分隔）。"
-                    : "请输入要发送的内容。", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
+                if (!silent)
+                {
+                    MessageBox.Show(this, "HEX 内容无效：需为偶数个十六进制字符（可带空格分隔）。", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
 
-            return;
+                return;
+            }
+        }
+        else
+        {
+            var gbk = _cmbSendEncoding.SelectedItem is "GBK";
+            payload = DataConvert.EncodeText(_txtSend.Text, gbk);
+            if (payload.Length == 0)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(this, "请输入要发送的内容。", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
+                return;
+            }
         }
 
         if (_chkAppendNewline.Checked)

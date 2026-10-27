@@ -36,39 +36,46 @@ public sealed class TcpServerSession : IDisposable
     public IReadOnlyCollection<ClientInfo> Clients => _clients.Values.ToList();
 
     /// <summary>开始监听指定地址与端口。</summary>
-    public async Task StartAsync(string listenIp, int port, CancellationToken cancellationToken = default)
+    public Task StartAsync(string listenIp, int port, CancellationToken cancellationToken = default)
     {
         Stop();
-        _cts = new CancellationTokenSource();
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        _listener = new TcpListener(IPAddress.Parse(listenIp), port);
-        _listener.Start();
+        var listener = new TcpListener(IPAddress.Parse(listenIp), port);
+        listener.Start();
+        _listener = listener;
         Started?.Invoke();
 
-        try
+        // 接受连接循环放到后台任务，调用方 await 后即可继续（自测等流程依赖立即返回）
+        _ = Task.Run(async () =>
         {
-            while (!_cts.IsCancellationRequested)
+            try
             {
-                var tcpClient = await _listener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
-                var info = new ClientInfo($"客户端{Interlocked.Increment(ref _clientSeq)}", tcpClient);
-                _clients[info.Id] = info;
-                ClientConnected?.Invoke(info);
-                _ = ClientLoopAsync(info).ConfigureAwait(false);
+                while (!_cts.IsCancellationRequested)
+                {
+                    var tcpClient = await listener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
+                    var info = new ClientInfo($"客户端{Interlocked.Increment(ref _clientSeq)}", tcpClient);
+                    _clients[info.Id] = info;
+                    ClientConnected?.Invoke(info);
+                    _ = ClientLoopAsync(info).ConfigureAwait(false);
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // 正常停止
-        }
-        catch (Exception)
-        {
-            // 监听异常时静默停止
-        }
-        finally
-        {
-            Stop();
-            Stopped?.Invoke();
-        }
+            catch (OperationCanceledException)
+            {
+                // 正常停止
+            }
+            catch (Exception)
+            {
+                // 监听异常时静默停止
+            }
+            finally
+            {
+                Stop();
+                Stopped?.Invoke();
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     private async Task ClientLoopAsync(ClientInfo info)
