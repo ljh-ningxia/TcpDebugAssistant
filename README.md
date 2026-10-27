@@ -2,6 +2,15 @@
 
 一个基于 C# / .NET 8 + WinForms 的 TCP 调试工具，支持 **客户端** 与 **服务端** 两种模式，适用于串口转以太网、物联网设备、自研 TCP 协议等场景的联调测试。
 
+## 下载即用（推荐）
+
+不想装开发环境？直接下载打好的 Windows 单文件版，解压后双击 `TcpDebugAssistant.exe` 即可运行，无需安装 .NET：
+
+👉 **[Releases 页面下载 TcpDebugAssistant.exe](https://github.com/ljh-ningxia/TcpDebugAssistant/releases)**
+
+- 系统要求：Windows 10/11（x64）
+- 文件约 160 MB（自包含单文件，含 .NET 运行时）
+
 ## 功能特性
 
 ### 连接
